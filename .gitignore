@@ -1,0 +1,7 @@
+cat12_latest.zip
+spm_25.01.02.zip
+data/extracted_adni_all_csv/adni_all_csv.zip
+*.zip
+__pycache__/
+*.pyc
+venv/
