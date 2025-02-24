@@ -65,14 +65,16 @@ try
         try
             spm_jobman('run', matlabbatch);
             
-            % Save GMV results
+            % Save GMV results - Copy instead of move
             output_dir = config.data.processed_dir;
             if ~exist(output_dir, 'dir')
                 mkdir(output_dir);
             end
             
-            movefile(fullfile('mri', ['mwp1' files(i).name]), ...
-                     fullfile(output_dir, ['gmv_' files(i).name]));
+            % Copy file instead of moving it
+            source_file = fullfile('mri', ['mwp1' files(i).name]);
+            dest_file = fullfile(output_dir, ['gmv_' files(i).name]);
+            copyfile(source_file, dest_file);
             
             fprintf('Successfully processed: %s\n', files(i).name);
         catch ME

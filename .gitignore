@@ -5,3 +5,41 @@ data/extracted_adni_all_csv/adni_all_csv.zip
 __pycache__/
 *.pyc
 venv/
+data/extracted_adni_all_csv/*
+data/extracted_adni_all_csv/*
+data/extracted_adni_all_csv/*
+data/extracted_adni_all_csv/*
+# System files
+.DS_Store
+*/.DS_Store
+
+# Data directories
+data/raw/*
+data/processed/*
+data/extracted_adni_all_csv/*
+
+# Large files
+*.zip
+*.nii
+*.nii.gz
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.ipynb_checkpoints
+
+# Virtual environment
+venv/
+env/
+# Neuroimaging files
+*.nii
+*.nii.gz
+
+# Biomarker data
+data/biomarker-data/*.csv
+
+# Cursor PRD docs
+cursor_prd/

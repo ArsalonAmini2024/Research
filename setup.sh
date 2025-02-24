@@ -19,6 +19,7 @@ pip install nibabel
 pip install matplotlib
 pip install scikit-image
 pip install scipy
+pip install antspyx
 
 # Create Jupyter kernel for this environment
 python -m ipykernel install --user --name=mri_preprocessing
