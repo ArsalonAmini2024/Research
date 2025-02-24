@@ -8,6 +8,8 @@ from tqdm import tqdm
 import gc  # For garbage collection
 import logging
 import yaml
+import pandas as pd
+from radiomics import featureextractor
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -171,11 +173,69 @@ class MRIPreprocessor:
             logger.error(f"Error in ROI feature extraction: {str(e)}")
             raise
     
+    def extract_radiomics_features(self, registered_img):
+        """Extract radiomics features and basic ROI features"""
+        logger.info("Extracting radiomics features...")
+        try:
+            # Convert ANTs image to numpy and save as temp NIfTI
+            temp_img_path = os.path.join(self.output_dir, 'temp_image.nii.gz')
+            temp_mask_path = os.path.join(self.output_dir, 'temp_mask.nii.gz')
+            
+            # Save registered image
+            registered_nib = nib.Nifti1Image(registered_img.numpy(), np.eye(4))
+            nib.save(registered_nib, temp_img_path)
+            
+            # Load and resample atlas to match registered image
+            atlas = nib.load(self.atlas_path)
+            atlas_resampled = image.resample_to_img(
+                atlas,
+                registered_nib,
+                interpolation='nearest'  # Use nearest neighbor for labels
+            )
+            nib.save(atlas_resampled, temp_mask_path)
+            
+            logger.info(f"Image shape: {registered_img.numpy().shape}")
+            logger.info(f"Mask shape: {atlas_resampled.get_fdata().shape}")
+            
+            # Initialize feature extractor with parameters
+            params = {
+                'binWidth': 25,
+                'resampledPixelSpacing': None,  # Don't resample again
+                'interpolator': 'sitkBSpline',
+                'preCrop': True,  # Crop to tumor mask
+                'force2D': False,
+                'label': 1  # Use first label
+            }
+            
+            extractor = featureextractor.RadiomicsFeatureExtractor(**params)
+            extractor.enableAllFeatures()
+            
+            # Extract radiomics features
+            result = extractor.execute(temp_img_path, temp_mask_path)
+            
+            # Convert to DataFrame row
+            features = pd.Series(result)
+            
+            # Add basic ROI features
+            roi_features = self.extract_roi_features(registered_img)
+            for roi, metrics in roi_features.items():
+                for metric, value in metrics.items():
+                    features[f"{roi}_{metric}"] = value
+            
+            # Cleanup temp files
+            os.remove(temp_img_path)
+            os.remove(temp_mask_path)
+            
+            return features
+            
+        except Exception as e:
+            logger.error(f"Error in radiomics feature extraction: {str(e)}")
+            logger.error(f"Full traceback:", exc_info=True)
+            raise
+    
     def process_dataset(self):
-        """
-        Process all images in the input directory
-        """
-        all_features = {}
+        """Process all images and save features"""
+        features_list = []
         image_files = [f for f in os.listdir(self.input_dir) if f.endswith(('.nii', '.nii.gz'))]
         
         logger.info(f"Found {len(image_files)} images to process")
@@ -189,11 +249,10 @@ class MRIPreprocessor:
                 # Preprocess image
                 processed_img = self.preprocess_single_image(img_path)
                 
-                # Extract ROI features
-                features = self.extract_roi_features(processed_img)
-                
-                # Save features
-                all_features[img_file] = features
+                # Extract all features
+                features = self.extract_radiomics_features(processed_img)
+                features.name = img_file  # Set name for the Series
+                features_list.append(features)
                 
                 # Save processed image
                 output_path = os.path.join(self.output_dir, f'processed_{img_file}')
@@ -212,5 +271,27 @@ class MRIPreprocessor:
                 logger.error(f"Error processing {img_file}: {str(e)}")
                 logger.error(f"Full error: {type(e).__name__}")
                 continue
-            
-        return all_features 
+        
+        if not features_list:
+            logger.error("No features were successfully extracted!")
+            return pd.DataFrame()
+        
+        # Create DataFrame from all features
+        features_df = pd.DataFrame(features_list)
+        
+        # Save features to CSV
+        csv_path = os.path.join(self.output_dir, 'radiomics_features.csv')
+        features_df.to_csv(csv_path)
+        logger.info(f"Saved features to: {csv_path}")
+        
+        # Print summary statistics
+        print("\nFeatures DataFrame Info:")
+        print(features_df.info())
+        
+        print("\nFeatures DataFrame Shape:", features_df.shape)
+        print("\nFeature Names:", features_df.columns.tolist()[:10], "...")  # Show first 10 features
+        
+        print("\nFeatures DataFrame Head (first 5 features):")
+        print(features_df.iloc[:, :5].head())
+        
+        return features_df 

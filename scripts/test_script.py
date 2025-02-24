@@ -14,23 +14,12 @@ def main():
     preprocessor = MRIPreprocessor(input_dir=input_dir, output_dir=output_dir)
     
     try:
-        # Process all images in the input directory
+        # Process all images and get features DataFrame
         print("Starting preprocessing pipeline...")
-        features = preprocessor.process_dataset()
+        features_df = preprocessor.process_dataset()
         
-        # Print some basic information about the processed data
-        print("\nProcessing complete!")
-        print(f"Number of processed images: {len(features)}")
+        print("\nFeatures have been saved to:", os.path.join(output_dir, 'radiomics_features.csv'))
         
-        # Print example features for the first image
-        if features:
-            first_image = list(features.keys())[0]
-            print(f"\nExample features for {first_image}:")
-            for roi, metrics in list(features[first_image].items())[:3]:  # Show first 3 ROIs
-                print(f"\n{roi}:")
-                for metric, value in metrics.items():
-                    print(f"  {metric}: {value}")
-    
     except Exception as e:
         print(f"Error during preprocessing: {str(e)}")
 
